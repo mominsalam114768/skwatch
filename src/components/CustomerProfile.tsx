@@ -268,51 +268,10 @@ export function CustomerProfile({ customer, onBack }: { customer: Customer, onBa
       });
   }, [processedTransactions, filterFromDate, filterToDate]);
 
-  const handleKeypad = (val: string) => {
-    if (val === 'AC') {
-      setAmountStr('0');
-    } else if (val === 'C') {
-      setAmountStr(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
-    } else if (['+', '-', '*', '/'].includes(val)) {
-      const lastChar = amountStr.slice(-1);
-      if (['+', '-', '*', '/'].includes(lastChar)) {
-        setAmountStr(prev => prev.slice(0, -1) + val);
-      } else {
-        setAmountStr(prev => prev + val);
-      }
-    } else if (val === '=') {
-      try {
-        // Safe evaluation of basic math
-        // eslint-disable-next-line no-new-func
-        const res = new Function(`return ${amountStr}`)();
-        setAmountStr(String(res));
-      } catch (e) {
-        setAmountStr('Error');
-        setTimeout(() => setAmountStr('0'), 1000);
-      }
-    } else {
-      setAmountStr(prev => prev === '0' ? val : prev + val);
-    }
-  };
-
-  const keys = [
-    '7', '8', '9', '/',
-    '4', '5', '6', '*',
-    '1', '2', '3', '-',
-    'C', '0', '=', '+'
-  ];
-
   const handleSubmit = async () => {
-    let finalAmount = 0;
-    try {
-      // eslint-disable-next-line no-new-func
-      finalAmount = new Function(`return ${amountStr}`)();
-    } catch {
-      alert("Invalid math expression");
-      return;
-    }
-
-    if (finalAmount <= 0) {
+    let finalAmount = Number(amountStr);
+    
+    if (isNaN(finalAmount) || finalAmount <= 0) {
       alert("হিসাবের পরিমাণ ০ থেকে বেশি হতে হবে");
       return;
     }
@@ -550,20 +509,17 @@ export function CustomerProfile({ customer, onBack }: { customer: Customer, onBa
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">ফোন নম্বর</label>
-                <input 
-                  value={editPhone} 
-                  onChange={e => {
-                    let val = e.target.value;
-                    if (val === '0') val = '+880';
-                    else if (val.length > 0 && !val.startsWith('+880') && !val.startsWith('+') && val.startsWith('1')) {
-                      val = '+880' + val;
-                    } else if (val.length > 0 && !val.startsWith('+880') && !val.startsWith('+')) {
-                      val = '+880' + val.replace(/^0+/, '');
-                    }
-                    setEditPhone(val);
-                  }} 
-                  className="w-full border border-gray-200 rounded-lg px-4 py-2 bg-gray-50 focus:outline-primary/50" 
-                />
+                <div className="flex">
+                  <span className="inline-flex items-center px-4 rounded-l-lg border border-r-0 border-gray-200 bg-gray-100 text-gray-500 font-mono">+88</span>
+                  <input 
+                    value={editPhone.replace(/^\+88/, '')} 
+                    onChange={e => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      if (val.length <= 11) setEditPhone('+88' + val);
+                    }} 
+                    className="w-full border border-gray-200 rounded-r-lg px-4 py-2 bg-gray-50 focus:outline-primary/50" 
+                  />
+                </div>
               </div>
               <button disabled={isSubmitting} className="w-full bg-primary text-white py-3 rounded-xl font-medium mt-4 disabled:opacity-50">
                 {isSubmitting ? 'সেভ হচ্ছে...' : 'সেভ করুন'}
@@ -700,9 +656,11 @@ export function CustomerProfile({ customer, onBack }: { customer: Customer, onBa
         <div className="animate-in slide-in-from-bottom flex flex-col items-center">
           <div className="bg-white border border-gray-200 rounded-2xl p-4 w-full mb-4 shadow-sm relative overflow-hidden group">
             <input 
-              readOnly
-              value={amountStr}
-              className="text-right text-4xl font-mono w-full font-bold text-gray-900 bg-transparent focus:outline-none"
+              type="number"
+              value={amountStr === '0' ? '' : amountStr}
+              onChange={(e) => setAmountStr(e.target.value)}
+              placeholder="0"
+              className="text-right text-4xl font-mono w-full font-bold text-gray-900 bg-transparent focus:outline-none placeholder-gray-300"
             />
             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300">
               <Calculator className="w-6 h-6" />
@@ -714,32 +672,8 @@ export function CustomerProfile({ customer, onBack }: { customer: Customer, onBa
             value={details}
             onChange={(e) => setDetails(e.target.value)}
             placeholder="বিবরণ (অপশনাল)..."
-            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 mb-4 focus:outline-none focus:border-primary"
+            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 mb-6 focus:outline-none focus:border-primary"
           />
-
-          <div className="grid grid-cols-4 gap-2 w-full mb-6">
-            {keys.map(k => (
-              <button 
-                key={k}
-                onClick={() => handleKeypad(k)}
-                className={`py-4 rounded-xl text-xl font-medium transition-all active:scale-95 ${
-                  ['/', '*', '-', '+', '='].includes(k) 
-                    ? 'bg-gray-100 text-gray-800'
-                    : k === 'C'
-                      ? 'bg-red-50 text-red-600'
-                      : 'bg-white border border-gray-100 shadow-sm text-gray-900 hover:bg-gray-50'
-                }`}
-              >
-                {k}
-              </button>
-            ))}
-            <button
-               onClick={() => handleKeypad('AC')}
-               className="col-span-4 py-3 bg-gray-100 text-gray-600 rounded-xl font-medium mt-1 active:scale-95"
-            >
-              Clear All (AC)
-            </button>
-          </div>
 
           <button
             onClick={handleSubmit}

@@ -55,7 +55,7 @@ export function AddCustomer({ onBack, onSuccess }: { onBack: () => void, onSucce
       const newRow = [
         id,
         name.trim(),
-        phone.trim(),
+        '+88' + phone.trim(),
         type,
         initialDueAmount,
         initialDueAmount // currentDue same as previousDue initially
@@ -101,22 +101,19 @@ export function AddCustomer({ onBack, onSuccess }: { onBack: () => void, onSucce
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">ফোন নম্বর</label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => {
-                let val = e.target.value;
-                if (val === '0') val = '+880';
-                else if (val.length > 0 && !val.startsWith('+880') && !val.startsWith('+') && val.startsWith('1')) {
-                  val = '+880' + val;
-                } else if (val.length > 0 && !val.startsWith('+880') && !val.startsWith('+')) {
-                  val = '+880' + val.replace(/^0+/, '');
-                }
-                setPhone(val);
-              }}
-              placeholder="০১৭... (১১ ডিজিট)"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-mono"
-            />
+            <div className="flex">
+              <span className="inline-flex items-center px-4 rounded-l-xl border border-r-0 border-gray-200 bg-gray-100 text-gray-500 font-mono">+88</span>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  if (val.length <= 11) setPhone(val);
+                }}
+                placeholder="017........ (১১ ডিজিট)"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-r-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-mono"
+              />
+            </div>
           </div>
 
           <div>
