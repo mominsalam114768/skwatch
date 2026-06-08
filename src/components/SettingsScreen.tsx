@@ -1,7 +1,7 @@
-import { useState, FormEvent, useEffect } from 'react';
+import React, { useState, FormEvent, useEffect } from 'react';
 import { LogOut, Sun, Moon, Key, UserPlus, Users, Trash2, Store, MapPin, Phone, Image as ImageIcon, Database } from 'lucide-react';
 import { createSubUser, logoutUser, getUsers, deleteUser, AppUser } from '../lib/localAuth';
-import { createNewSpreadsheet, setupSpreadsheet } from '../lib/sheets';
+import { createNewSpreadsheet, setupSpreadsheet, pushSettingsToDatabase, pushUsersToDatabase } from '../lib/sheets';
 import { getCachedAccessToken } from '../lib/firebase';
 
 export function SettingsScreen({ onLogout, userRole }: { onLogout: () => void, userRole: string }) {
@@ -27,11 +27,15 @@ export function SettingsScreen({ onLogout, userRole }: { onLogout: () => void, u
     }
   }, [userRole]);
 
-  const handleSaveBizInfo = () => {
+  const handleSaveBizInfo = async () => {
     localStorage.setItem('bizName', bizName);
     localStorage.setItem('bizAddress', bizAddress);
     localStorage.setItem('bizMobile', bizMobile);
     localStorage.setItem('bizLogo', bizLogo);
+    
+    const token = getCachedAccessToken();
+    if (token) await pushSettingsToDatabase(token);
+    
     alert('প্রতিষ্ঠানের তথ্য সংরক্ষিত হয়েছে!');
     window.location.reload();
   };
@@ -65,8 +69,10 @@ export function SettingsScreen({ onLogout, userRole }: { onLogout: () => void, u
     }
   };
 
-  const handleSaveApi = () => {
+  const handleSaveApi = async () => {
     localStorage.setItem('smsApi', smsApi);
+    const token = getCachedAccessToken();
+    if (token) await pushSettingsToDatabase(token);
     alert('SMS API URL সংরক্ষিত হয়েছে!');
   };
 
@@ -80,6 +86,8 @@ export function SettingsScreen({ onLogout, userRole }: { onLogout: () => void, u
       document.documentElement.classList.remove('dark');
       localStorage.setItem('theme', 'light');
     }
+    const token = getCachedAccessToken();
+    if (token) pushSettingsToDatabase(token);
   };
 
   const handleSaveSheetId = async () => {
@@ -123,11 +131,14 @@ export function SettingsScreen({ onLogout, userRole }: { onLogout: () => void, u
     }
   };
 
-  const handleCreateUser = (e: FormEvent) => {
+  const handleCreateUser = async (e: FormEvent) => {
     e.preventDefault();
     if(newUsername && newPassword) {
       try {
         createSubUser(newUsername, newPassword);
+        const token = getCachedAccessToken();
+        if (token) await pushUsersToDatabase(token);
+        
         alert(`ইউজার '${newUsername}' সফলভাবে তৈরি হয়েছে!`);
         setNewUsername('');
         setNewPassword('');
@@ -139,8 +150,11 @@ export function SettingsScreen({ onLogout, userRole }: { onLogout: () => void, u
     }
   };
 
-  const handleDeleteUser = (email: string) => {
+  const handleDeleteUser = async (email: string) => {
     deleteUser(email);
+    const token = getCachedAccessToken();
+    if (token) await pushUsersToDatabase(token);
+    
     setUsers(getUsers());
     setUserToDelete(null);
   };

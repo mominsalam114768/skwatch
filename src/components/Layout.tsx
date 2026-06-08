@@ -7,7 +7,7 @@ import { GlobalReport } from './GlobalReport';
 import { CashboxScreen } from './CashboxScreen';
 import { SettingsScreen } from './SettingsScreen';
 import { Customer } from '../types';
-import { setupSpreadsheet, getSheetData } from '../lib/sheets';
+import { setupSpreadsheet, getSheetData, syncDatabaseToLocal } from '../lib/sheets';
 import { getCachedAccessToken, googleSignIn } from '../lib/firebase';
 
 type Screen = 'home' | 'add-customer' | 'customer-profile' | 'stock' | 'cashbox' | 'report' | 'settings';
@@ -23,8 +23,8 @@ export function Layout({ businessName, userRole, onLogout }: { businessName: str
   const [isSettingUp, setIsSettingUp] = useState(false);
   const [needsGoogleAuth, setNeedsGoogleAuth] = useState(false);
 
-  const displayBizName = localStorage.getItem('bizName') || businessName || 'হিসাব খাতা';
-  const displayBizLogo = localStorage.getItem('bizLogo');
+  const [displayBizName, setDisplayBizName] = useState(localStorage.getItem('bizName') || businessName || 'হিসাব খাতা');
+  const [displayBizLogo, setDisplayBizLogo] = useState(localStorage.getItem('bizLogo'));
 
   const loadData = async () => {
     setIsLoading(true);
@@ -34,6 +34,10 @@ export function Layout({ businessName, userRole, onLogout }: { businessName: str
       const token = getCachedAccessToken();
       if (!token) throw new Error("No token");
       
+      await syncDatabaseToLocal(token);
+      setDisplayBizName(localStorage.getItem('bizName') || businessName || 'হিসাব খাতা');
+      setDisplayBizLogo(localStorage.getItem('bizLogo') || null);
+
       const customerData = await getSheetData('Customers!A2:F', token);
       const parsedCustomers: Customer[] = customerData.map((row: any[], i: number) => ({
         id: row[0] || '',
