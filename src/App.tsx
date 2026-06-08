@@ -16,10 +16,11 @@ export default function App() {
     if (localStorage.getItem('theme') === 'dark') {
       document.documentElement.classList.add('dark');
     }
-    initAuth(
+    const unsubscribe = initAuth(
       () => setIsFirebaseReady(true),
       () => setIsFirebaseReady(true)
     );
+    return () => unsubscribe();
   }, []);
 
   if (!user) {
