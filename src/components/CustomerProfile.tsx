@@ -1,6 +1,6 @@
 import { useState, useEffect, FormEvent, useMemo } from 'react';
 import { Customer } from '../types';
-import { ArrowLeft, CheckCircle2, Calculator, Loader2, Settings, MoreVertical, Bell, Pencil, FileText, Trash2, X, Printer, Search } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Calculator, Loader2, Settings, MoreVertical, Bell, Pencil, FileText, Trash2, X, Printer, Search, MessageSquare, Send, Phone } from 'lucide-react';
 import { appendRow, updateRow, setupSpreadsheet, getSheetData } from '../lib/sheets';
 import { getCachedAccessToken } from '../lib/firebase';
 
@@ -368,25 +368,68 @@ export function CustomerProfile({ customer, onBack }: { customer: Customer, onBa
   };
 
   if (successMode) {
+    const finalNewDue = transactionType === 'দিলাম' ? customer.currentDue + Number(amountStr) : customer.currentDue - Number(amountStr);
+    const transMsg = `আপনার হিসাব আপডেট হয়েছে। ধরণ: ${transactionType}, পরিমাণ: ৳ ${amountStr}। বর্তমান ব্যালেন্স: ৳ ${Math.abs(finalNewDue)} (${finalNewDue >= 0 ? 'পাবো' : 'দিবো'})।`;
+    
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 animate-in fade-in zoom-in duration-300">
-        <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
+      <div className="flex flex-col items-center justify-center min-h-[70vh] text-center space-y-6 animate-in fade-in zoom-in duration-300 pb-10">
+        <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-2">
           <CheckCircle2 className="w-16 h-16" />
         </div>
-        <h2 className="text-3xl font-bold text-gray-900">লেনদেন সফল!</h2>
-        <div className="bg-white p-6 rounded-2xl shadow border border-gray-100 max-w-sm w-full space-y-3 font-mono">
-          <p className="text-gray-500">কাস্টমার: <span className="font-bold text-gray-900">{customer.name}</span></p>
-          <p className="text-gray-500">ধরণ: <span className="font-bold text-gray-900">{transactionType}</span></p>
-          <p className="text-gray-500 border-b pb-3">পরিমাণ: <span className="font-bold text-gray-900">৳ {amountStr}</span></p>
-          <p className="text-gray-500 pt-1">নতুন বকেয়া: <span className={`font-bold ${customer.currentDue > 0 ? 'text-primary' : 'text-green-600'}`}>৳ {Math.abs(
-            transactionType === 'দিলাম' ? customer.currentDue + Number(amountStr) : customer.currentDue - Number(amountStr)
-          ).toLocaleString('en-IN')}</span></p>
+        <h2 className="text-3xl font-bold text-gray-900 leading-tight">লেনদেন সফল!</h2>
+        
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 max-w-sm w-full space-y-3 font-mono text-left relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-1 h-full bg-green-500"></div>
+          <p className="text-gray-500 text-sm">কাস্টমার: <span className="font-bold text-gray-900">{customer.name}</span></p>
+          <p className="text-gray-500 text-sm">ধরণ: <span className="font-bold text-gray-900">{transactionType}</span></p>
+          <p className="text-gray-500 text-sm border-b pb-3">পরিমাণ: <span className="font-bold text-gray-900 text-base">৳ {amountStr}</span></p>
+          <p className="text-gray-500 pt-1 text-sm flex items-center justify-between">নতুন বকেয়া: <span className={`font-bold text-lg ${finalNewDue > 0 ? 'text-primary' : 'text-green-600'}`}>৳ {Math.abs(finalNewDue).toLocaleString('en-IN')}</span></p>
         </div>
+
+        <div className="bg-blue-50/50 p-5 rounded-2xl w-full max-w-sm border border-blue-100/50">
+          <p className="text-sm font-medium text-gray-700 mb-3 text-left">এসএমএস/নোটিফিকেশন পাঠান</p>
+          <div className="grid grid-cols-3 gap-2">
+             <button 
+                onClick={() => { window.location.href = `sms:${customer.phone}?body=${encodeURIComponent(transMsg)}`; }}
+                className="bg-white border text-gray-700 p-2 rounded-xl text-xs font-medium hover:bg-gray-50 flex flex-col items-center justify-center gap-1"
+             >
+                <div className="bg-blue-100 p-1.5 rounded-full"><MessageSquare className="w-4 h-4 text-blue-600" /></div>
+                এস.এম.এস
+             </button>
+             <button 
+                onClick={() => {
+                  const api = localStorage.getItem('smsApi');
+                  if (api && api.includes('[number]')) {
+                    let finalApi = api.replace('[number]', customer.phone).replace('[message]', encodeURIComponent(transMsg));
+                    fetch(finalApi).then(() => alert('ম্যাসেজ পাঠানো সফল হয়েছে!')).catch(() => alert('API এর মাধ্যমে পাঠাতে সমস্যা হয়েছে।'));
+                  } else {
+                    alert('সেটিংস থেকে মেসেজ API সেটআপ করুন।');
+                  }
+                }}
+                className="bg-white border text-gray-700 p-2 rounded-xl text-xs font-medium hover:bg-gray-50 flex flex-col items-center justify-center gap-1"
+             >
+                <div className="bg-purple-100 p-1.5 rounded-full"><Send className="w-4 h-4 text-purple-600" /></div>
+                মেসেজ এপিআই
+             </button>
+             <button 
+                onClick={() => {
+                  let phoneNum = String(customer.phone || '').replace(/[^0-9]/g, '');
+                  if (!phoneNum.startsWith('88')) phoneNum = '88' + phoneNum;
+                  window.open(`https://wa.me/${phoneNum}?text=${encodeURIComponent(transMsg)}`, '_blank');
+                }}
+                className="bg-white border text-gray-700 p-2 rounded-xl text-xs font-medium hover:bg-gray-50 flex flex-col items-center justify-center gap-1"
+             >
+                <div className="bg-green-100 p-1.5 rounded-full"><Phone className="w-4 h-4 text-green-600" /></div>
+                হোয়াটসএপ
+             </button>
+          </div>
+        </div>
+
         <button 
           onClick={onBack}
-          className="bg-primary text-white px-8 py-3 rounded-xl font-medium"
+          className="bg-black text-white w-full max-w-sm py-4 rounded-xl font-bold shadow-md hover:bg-gray-800 transition-colors"
         >
-          ফিরে যান
+          প্রোফাইলে ফিরে যান
         </button>
       </div>
     );
@@ -507,7 +550,20 @@ export function CustomerProfile({ customer, onBack }: { customer: Customer, onBa
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">ফোন নম্বর</label>
-                <input value={editPhone} onChange={e => setEditPhone(e.target.value)} className="w-full border border-gray-200 rounded-lg px-4 py-2 bg-gray-50 focus:outline-primary/50" />
+                <input 
+                  value={editPhone} 
+                  onChange={e => {
+                    let val = e.target.value;
+                    if (val === '0') val = '+880';
+                    else if (val.length > 0 && !val.startsWith('+880') && !val.startsWith('+') && val.startsWith('1')) {
+                      val = '+880' + val;
+                    } else if (val.length > 0 && !val.startsWith('+880') && !val.startsWith('+')) {
+                      val = '+880' + val.replace(/^0+/, '');
+                    }
+                    setEditPhone(val);
+                  }} 
+                  className="w-full border border-gray-200 rounded-lg px-4 py-2 bg-gray-50 focus:outline-primary/50" 
+                />
               </div>
               <button disabled={isSubmitting} className="w-full bg-primary text-white py-3 rounded-xl font-medium mt-4 disabled:opacity-50">
                 {isSubmitting ? 'সেভ হচ্ছে...' : 'সেভ করুন'}

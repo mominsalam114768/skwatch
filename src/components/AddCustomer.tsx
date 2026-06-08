@@ -104,7 +104,16 @@ export function AddCustomer({ onBack, onSuccess }: { onBack: () => void, onSucce
             <input
               type="tel"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                let val = e.target.value;
+                if (val === '0') val = '+880';
+                else if (val.length > 0 && !val.startsWith('+880') && !val.startsWith('+') && val.startsWith('1')) {
+                  val = '+880' + val;
+                } else if (val.length > 0 && !val.startsWith('+880') && !val.startsWith('+')) {
+                  val = '+880' + val.replace(/^0+/, '');
+                }
+                setPhone(val);
+              }}
               placeholder="০১৭... (১১ ডিজিট)"
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-mono"
             />

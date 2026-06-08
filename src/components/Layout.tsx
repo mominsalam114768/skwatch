@@ -55,7 +55,9 @@ export function Layout({ businessName, userRole, onLogout }: { businessName: str
         setErrorMsg('গুগল ডাটাবেজের সাথে সংযোগ বিচ্ছিন্ন। দয়া করে কানেক্ট করুন।');
         setNeedsGoogleAuth(true);
       } else if (err.message.includes('Unable to parse range')) {
-        setErrorMsg('গুগল শিটে "Customers" নামের কোনো শট পাওয়া যায়নি। দয়া করে শিটটি তৈরি করুন।');
+        setErrorMsg('গুগল শিটে "Customers" নামের কোনো শিট পাওয়া যায়নি। দয়া করে শিটটি সেটআপ করুন।');
+      } else if (err.message.includes('403') || err.message.includes('404') || err.message.includes('PERMISSION_DENIED')) {
+        setErrorMsg('আপনার বর্তমান জিমেইল একাউন্টের এই ডাটাবেজে পারমিশন নেই। সেটিংসে গিয়ে নতুন ডাটাবেজ তৈরি করুন অথবা সঠিক ডাটাবেজ আইডি দিন।');
       } else {
         setErrorMsg('ডাটা লোড করতে সমস্যা হয়েছে: ' + err.message);
       }

@@ -33,10 +33,13 @@ export function SettingsScreen({ onLogout, userRole }: { onLogout: () => void, u
     localStorage.setItem('bizMobile', bizMobile);
     localStorage.setItem('bizLogo', bizLogo);
     
-    const token = getCachedAccessToken();
-    if (token) await pushSettingsToDatabase(token);
-    
-    alert('প্রতিষ্ঠানের তথ্য সংরক্ষিত হয়েছে!');
+    try {
+      const token = getCachedAccessToken();
+      if (token) await pushSettingsToDatabase(token);
+      alert('প্রতিষ্ঠানের তথ্য সংরক্ষিত হয়েছে!');
+    } catch(e: any) {
+      alert('লোকাল ব্রাউজারে সংরক্ষিত হয়েছে, তবে ডাটাবেজে সেভ করতে সমস্যা হয়েছে: ' + e.message);
+    }
     window.location.reload();
   };
 
@@ -71,9 +74,13 @@ export function SettingsScreen({ onLogout, userRole }: { onLogout: () => void, u
 
   const handleSaveApi = async () => {
     localStorage.setItem('smsApi', smsApi);
-    const token = getCachedAccessToken();
-    if (token) await pushSettingsToDatabase(token);
-    alert('SMS API URL সংরক্ষিত হয়েছে!');
+    try {
+      const token = getCachedAccessToken();
+      if (token) await pushSettingsToDatabase(token);
+      alert('SMS API URL সংরক্ষিত হয়েছে!');
+    } catch(e: any) {
+      alert('লোকাল ব্রাউজারে সংরক্ষিত হয়েছে, তবে ডাটাবেজে সেভ করতে সমস্যা হয়েছে: ' + e.message);
+    }
   };
 
   const toggleDarkMode = () => {
@@ -87,7 +94,9 @@ export function SettingsScreen({ onLogout, userRole }: { onLogout: () => void, u
       localStorage.setItem('theme', 'light');
     }
     const token = getCachedAccessToken();
-    if (token) pushSettingsToDatabase(token);
+    if (token) {
+      pushSettingsToDatabase(token).catch(e => console.error("Failed to push theme setting: ", e));
+    }
   };
 
   const handleSaveSheetId = async () => {
@@ -136,10 +145,13 @@ export function SettingsScreen({ onLogout, userRole }: { onLogout: () => void, u
     if(newUsername && newPassword) {
       try {
         createSubUser(newUsername, newPassword);
-        const token = getCachedAccessToken();
-        if (token) await pushUsersToDatabase(token);
-        
-        alert(`ইউজার '${newUsername}' সফলভাবে তৈরি হয়েছে!`);
+        try {
+          const token = getCachedAccessToken();
+          if (token) await pushUsersToDatabase(token);
+          alert(`ইউজার '${newUsername}' সফলভাবে তৈরি হয়েছে!`);
+        } catch (dbErr: any) {
+          alert(`ইউজার লোকালি তৈরি হয়েছে, কিন্তু ডাটাবেজে সেভ হয়নি: ${dbErr.message}`);
+        }
         setNewUsername('');
         setNewPassword('');
         setErrorMsg('');
@@ -152,8 +164,12 @@ export function SettingsScreen({ onLogout, userRole }: { onLogout: () => void, u
 
   const handleDeleteUser = async (email: string) => {
     deleteUser(email);
-    const token = getCachedAccessToken();
-    if (token) await pushUsersToDatabase(token);
+    try {
+      const token = getCachedAccessToken();
+      if (token) await pushUsersToDatabase(token);
+    } catch (dbErr: any) {
+      alert(`ইউজার লোকালি ডিলিট হয়েছে, কিন্তু ডাটাবেজ থেকে মুছতে সমস্যা: ${dbErr.message}`);
+    }
     
     setUsers(getUsers());
     setUserToDelete(null);

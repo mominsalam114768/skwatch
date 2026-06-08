@@ -64,8 +64,8 @@ export const getCachedAccessToken = (): string | null => {
   return null;
 };
 
-export const logout = async () => {
-  await auth.signOut();
+export const clearGoogleAuth = async () => {
   cachedAccessToken = null;
   localStorage.removeItem('google_sheets_token');
+  await auth.signOut().catch(() => {});
 };

@@ -1,3 +1,5 @@
+import { clearGoogleAuth } from './firebase';
+
 const getSheetId = () => {
   const id = localStorage.getItem('my_sheet_id');
   if (!id) {
@@ -7,15 +9,24 @@ const getSheetId = () => {
   return id;
 };
 
+async function handleFetchResponse(res: Response, context: string) {
+  if (!res.ok) {
+    const errText = await res.text();
+    if (res.status === 401) {
+      await clearGoogleAuth();
+      throw new Error(`Authentication expired (401). Please log in again. Details: ${errText}`);
+    }
+    throw new Error(`Failed to ${context}: ${errText}`);
+  }
+  return res;
+}
+
 export async function getSheetData(range: string, accessToken: string) {
   if (!accessToken) throw new Error("No token");
   const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/${range}?valueRenderOption=UNFORMATTED_VALUE`, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Failed to fetch ${range}: ${err}`);
-  }
+  await handleFetchResponse(res, `fetch ${range}`);
   const data = await res.json();
   return data.values || [];
 }
@@ -27,10 +38,7 @@ export async function appendRow(range: string, values: any[][], accessToken: str
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ values })
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Failed to append ${range}: ${err}`);
-  }
+  await handleFetchResponse(res, `append ${range}`);
   return await res.json();
 }
 
@@ -39,12 +47,9 @@ export async function updateRow(range: string, values: any[][], accessToken: str
   const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/${range}?valueInputOption=USER_ENTERED`, {
     method: 'PUT',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ values })
+    body: JSON.stringify({ range, majorDimension: "ROWS", values })
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Failed to update ${range}: ${err}`);
-  }
+  await handleFetchResponse(res, `update ${range}`);
   return await res.json();
 }
 
@@ -58,7 +63,7 @@ export async function setupSpreadsheet(accessToken: string, providedSheetId?: st
   const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetIdToUse}`, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
-  if (!res.ok) throw new Error("Failed to get spreadsheet info");
+  await handleFetchResponse(res, `get spreadsheet info`);
   const data = await res.json();
   const existingTitles = data.sheets.map((s: any) => s.properties.title);
 
@@ -86,9 +91,7 @@ export async function setupSpreadsheet(accessToken: string, providedSheetId?: st
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ requests })
     });
-    if (!addRes.ok) {
-      console.error("Failed to batch update sheets");
-    }
+    await handleFetchResponse(addRes, `batch update sheets`).catch(e => console.error(e));
   }
 
   // After ensuring sheets exist, append the headers if they are empty
@@ -130,8 +133,11 @@ export async function syncDatabaseToLocal(accessToken: string) {
     if (users.length > 0) {
       localStorage.setItem('appUsers', JSON.stringify(users));
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error("Failed to sync from database", e);
+    if (e.message && e.message.includes('401')) {
+      throw e;
+    }
   }
 }
 export async function pushSettingsToDatabase(accessToken: string) {
@@ -139,16 +145,12 @@ export async function pushSettingsToDatabase(accessToken: string) {
   const keys = ['bizName', 'bizAddress', 'bizMobile', 'bizLogo', 'smsApi', 'theme'];
   const values = keys.map(k => [k, localStorage.getItem(k) || '']);
   
-  try {
-    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/Settings!A2:B?valueInputOption=USER_ENTERED`, {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ values })
-    });
-    if (!res.ok) console.error("Failed to push settings", await res.text());
-  } catch (e) {
-    console.error(e);
-  }
+  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/Settings!A2:B?valueInputOption=USER_ENTERED`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ range: "Settings!A2:B", majorDimension: "ROWS", values })
+  });
+  await handleFetchResponse(res, `push settings`);
 }
 
 export async function pushUsersToDatabase(accessToken: string) {
@@ -157,16 +159,12 @@ export async function pushUsersToDatabase(accessToken: string) {
   const values = users.map((u: any) => [u.email, u.pass, u.role]);
   if (values.length === 0) return;
 
-  try {
-    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/Users!A2:C?valueInputOption=USER_ENTERED`, {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ values })
-    });
-    if (!res.ok) console.error("Failed to push users", await res.text());
-  } catch (e) {
-    console.error(e);
-  }
+  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/Users!A2:C?valueInputOption=USER_ENTERED`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ range: "Users!A2:C", majorDimension: "ROWS", values })
+  });
+  await handleFetchResponse(res, `push users`);
 }
 
 export async function createNewSpreadsheet(accessToken: string, title: string) {
@@ -180,10 +178,7 @@ export async function createNewSpreadsheet(accessToken: string, title: string) {
       }
     })
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Failed to create spreadsheet: ${err}`);
-  }
+  await handleFetchResponse(res, `create spreadsheet`);
   const data = await res.json();
   const newSheetId = data.spreadsheetId;
   localStorage.setItem('my_sheet_id', newSheetId);
