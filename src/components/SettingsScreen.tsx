@@ -1,6 +1,8 @@
 import { useState, FormEvent, useEffect } from 'react';
-import { LogOut, Sun, Moon, Key, UserPlus, Users, Trash2, Store, MapPin, Phone, Image as ImageIcon } from 'lucide-react';
+import { LogOut, Sun, Moon, Key, UserPlus, Users, Trash2, Store, MapPin, Phone, Image as ImageIcon, Database } from 'lucide-react';
 import { createSubUser, logoutUser, getUsers, deleteUser, AppUser } from '../lib/localAuth';
+import { createNewSpreadsheet, setupSpreadsheet } from '../lib/sheets';
+import { getCachedAccessToken } from '../lib/firebase';
 
 export function SettingsScreen({ onLogout, userRole }: { onLogout: () => void, userRole: string }) {
   const [smsApi, setSmsApi] = useState(localStorage.getItem('smsApi') || '');
@@ -8,6 +10,8 @@ export function SettingsScreen({ onLogout, userRole }: { onLogout: () => void, u
   const [bizAddress, setBizAddress] = useState(localStorage.getItem('bizAddress') || '');
   const [bizMobile, setBizMobile] = useState(localStorage.getItem('bizMobile') || '');
   const [bizLogo, setBizLogo] = useState(localStorage.getItem('bizLogo') || '');
+  const [sheetId, setSheetId] = useState(localStorage.getItem('my_sheet_id') || '');
+  const [isCreatingDb, setIsCreatingDb] = useState(false);
   
   const [isDarkMode, setIsDarkMode] = useState(document.documentElement.classList.contains('dark'));
   const [newUsername, setNewUsername] = useState('');
@@ -75,6 +79,47 @@ export function SettingsScreen({ onLogout, userRole }: { onLogout: () => void, u
     } else {
       document.documentElement.classList.remove('dark');
       localStorage.setItem('theme', 'light');
+    }
+  };
+
+  const handleSaveSheetId = async () => {
+    if (!sheetId) {
+      alert('দয়া করে শিট ID দিন');
+      return;
+    }
+    const token = getCachedAccessToken();
+    if (!token) {
+      alert('আগে গুগল লগইন করুন। হোম পেজ থেকে ডাটাবেজ কানেক্ট করুন বোতামটি চাপুন।');
+      return;
+    }
+    try {
+      setIsCreatingDb(true);
+      await setupSpreadsheet(token, sheetId);
+      alert('সফলভাবে ডাটাবেজ লিঙ্ক করা হয়েছে!');
+      window.location.reload();
+    } catch(e: any) {
+      alert('লিঙ্ক করতে সমস্যা হয়েছে: ' + e.message);
+    } finally {
+      setIsCreatingDb(false);
+    }
+  };
+
+  const handleCreateNewSheet = async () => {
+    const token = getCachedAccessToken();
+    if (!token) {
+      alert('আগে গুগল লগইন করুন। হোম পেজ থেকে ডাটাবেজ কানেক্ট করুন বোতামটি চাপুন।');
+      return;
+    }
+    try {
+      setIsCreatingDb(true);
+      const newId = await createNewSpreadsheet(token, bizName || 'SK Watch Database');
+      await setupSpreadsheet(token, newId);
+      setSheetId(newId);
+      alert('নতুন ডাটাবেজ সফলভাবে তৈরি হয়েছে!');
+    } catch(e: any) {
+      alert('ডাটাবেজ তৈরি করতে সমস্যা হয়েছে: ' + e.message);
+    } finally {
+      setIsCreatingDb(false);
     }
   };
 
@@ -204,6 +249,51 @@ export function SettingsScreen({ onLogout, userRole }: { onLogout: () => void, u
           <p className="text-xs text-gray-500 mt-2">
             নোট: API URL এ <code className="bg-gray-200 px-1 py-0.5 rounded text-gray-800">[number]</code> এবং <code className="bg-gray-200 px-1 py-0.5 rounded text-gray-800">[message]</code> প্লেসহোল্ডার হিসেবে ব্যবহার করুন।
           </p>
+        </div>
+      </div>
+
+      {/* Database Setup */}
+      <div className="bg-card-bg rounded-2xl shadow-sm border border-gray-100 p-6 transition-colors">
+        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <Database className="w-5 h-5 text-primary" /> গুগল শিট ডাটাবেজ সেটআপ
+        </h3>
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">প্রত্যেক গুগল একাউন্টের জন্য আলাদা ডাটাবেজ ব্যবহার করতে নিচের অপশন ব্যবহার করুন।</p>
+          
+          <div className="pt-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">শিট লিংক বা আইডি (বিদ্যমান ডাটাবেজ)</label>
+            <input 
+              type="text" 
+              value={sheetId}
+              onChange={e => {
+                let val = e.target.value;
+                if (val.includes('/d/')) {
+                  const match = val.match(/\/d\/([a-zA-Z0-9-_]+)/);
+                  if (match) val = match[1];
+                }
+                setSheetId(val);
+              }}
+              placeholder="1l9wm2yDDNHEe..."
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 text-gray-900 font-mono text-sm"
+            />
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <button 
+              onClick={handleSaveSheetId} 
+              disabled={isCreatingDb}
+              className="flex-1 bg-primary text-white px-4 py-3 rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50"
+            >
+              {isCreatingDb ? 'অপেক্ষা করুন...' : 'কানেক্ট করুন'}
+            </button>
+            <button 
+              onClick={handleCreateNewSheet} 
+              disabled={isCreatingDb}
+              className="flex-1 bg-white border border-gray-200 text-gray-700 px-4 py-3 rounded-lg font-medium hover:bg-gray-50 disabled:opacity-50"
+            >
+              {isCreatingDb ? 'তৈরি হচ্ছে...' : '+ নতুন ডাটাবেজ তৈরি করুন'}
+            </button>
+          </div>
         </div>
       </div>
 

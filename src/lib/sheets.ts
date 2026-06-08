@@ -1,8 +1,15 @@
-export const SHEET_ID = '1l9wm2yDDNHEe3Pp1ZYpaoQTAu-TRMIwdMDPv2R8NHGE';
+const getSheetId = () => {
+  const id = localStorage.getItem('my_sheet_id');
+  if (!id) {
+    // Fallback to original database for existing user
+    return '1l9wm2yDDNHEe3Pp1ZYpaoQTAu-TRMIwdMDPv2R8NHGE';
+  }
+  return id;
+};
 
 export async function getSheetData(range: string, accessToken: string) {
   if (!accessToken) throw new Error("No token");
-  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?valueRenderOption=UNFORMATTED_VALUE`, {
+  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/${range}?valueRenderOption=UNFORMATTED_VALUE`, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
   if (!res.ok) {
@@ -15,7 +22,7 @@ export async function getSheetData(range: string, accessToken: string) {
 
 export async function appendRow(range: string, values: any[][], accessToken: string) {
   if (!accessToken) throw new Error("No token");
-  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED`, {
+  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/${range}:append?valueInputOption=USER_ENTERED`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ values })
@@ -29,7 +36,7 @@ export async function appendRow(range: string, values: any[][], accessToken: str
 
 export async function updateRow(range: string, values: any[][], accessToken: string) {
   if (!accessToken) throw new Error("No token");
-  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`, {
+  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/${range}?valueInputOption=USER_ENTERED`, {
     method: 'PUT',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ values })
@@ -41,9 +48,14 @@ export async function updateRow(range: string, values: any[][], accessToken: str
   return await res.json();
 }
 
-export async function setupSpreadsheet(accessToken: string) {
+export async function setupSpreadsheet(accessToken: string, providedSheetId?: string) {
   if (!accessToken) throw new Error("No token");
-  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`, {
+  const sheetIdToUse = providedSheetId || getSheetId();
+  if (providedSheetId) {
+    localStorage.setItem('my_sheet_id', providedSheetId);
+  }
+
+  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetIdToUse}`, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
   if (!res.ok) throw new Error("Failed to get spreadsheet info");
@@ -67,7 +79,7 @@ export async function setupSpreadsheet(accessToken: string) {
   }
 
   if (requests.length > 0) {
-    const addRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`, {
+    const addRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetIdToUse}:batchUpdate`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ requests })
@@ -80,12 +92,12 @@ export async function setupSpreadsheet(accessToken: string) {
   // After ensuring sheets exist, append the headers if they are empty
   for (const sheet of neededSheets) {
     try {
-      const headerRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${sheet.title}!A1:Z1`, {
+      const headerRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetIdToUse}/values/${sheet.title}!A1:Z1`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
       const headerData = await headerRes.json();
       if (!headerData.values || headerData.values.length === 0) {
-        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${sheet.title}!A1:append?valueInputOption=USER_ENTERED`, {
+        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetIdToUse}/values/${sheet.title}!A1:append?valueInputOption=USER_ENTERED`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ values: [sheet.headers] })
@@ -95,4 +107,27 @@ export async function setupSpreadsheet(accessToken: string) {
       console.error("Error setting headers for", sheet.title, e);
     }
   }
+  
+  return sheetIdToUse;
+}
+
+export async function createNewSpreadsheet(accessToken: string, title: string) {
+  if (!accessToken) throw new Error("No token");
+  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      properties: {
+        title: title || 'Store Manager Database'
+      }
+    })
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Failed to create spreadsheet: ${err}`);
+  }
+  const data = await res.json();
+  const newSheetId = data.spreadsheetId;
+  localStorage.setItem('my_sheet_id', newSheetId);
+  return newSheetId;
 }
