@@ -5,7 +5,8 @@ import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-export const db = getFirestore(app);
+// @ts-ignore
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || undefined);
 
 const provider = new GoogleAuthProvider();
 provider.addScope('https://www.googleapis.com/auth/spreadsheets');
@@ -46,30 +47,40 @@ export const initAuth = (
   onAuthFailure?: () => void
 ) => {
   return onAuthStateChanged(auth, async (user: User | null) => {
-    const lsToken = localStorage.getItem('google_sheets_token');
-    
-    if (user) {
-      // Upon auth success, check if we need to restore sheetId from firestore
-      const existingAppSheetId = localStorage.getItem('my_sheet_id');
-      const firestoreSheetId = await fetchSheetIdFromFirestore(user.uid);
+    try {
+      const lsToken = localStorage.getItem('google_sheets_token');
       
-      if (firestoreSheetId && firestoreSheetId !== existingAppSheetId) {
-        localStorage.setItem('my_sheet_id', firestoreSheetId);
-      } else if (existingAppSheetId && !firestoreSheetId) {
-        // If we have one locally but not in firestore, sync it up
-        await syncSheetIdToFirestore(user.uid, existingAppSheetId);
-      }
+      if (user) {
+        // Upon auth success, check if we need to restore sheetId from firestore
+        const existingAppSheetId = localStorage.getItem('my_sheet_id');
+        let firestoreSheetId: string | null = null;
+        try {
+          firestoreSheetId = await fetchSheetIdFromFirestore(user.uid);
+        } catch (e) {
+          console.error("fetchSheetId failed", e);
+        }
+        
+        if (firestoreSheetId && firestoreSheetId !== existingAppSheetId) {
+          localStorage.setItem('my_sheet_id', firestoreSheetId);
+        } else if (existingAppSheetId && !firestoreSheetId) {
+          // If we have one locally but not in firestore, sync it up
+          await syncSheetIdToFirestore(user.uid, existingAppSheetId).catch(console.error);
+        }
 
-      if (cachedAccessToken || lsToken) {
-        if (!cachedAccessToken) cachedAccessToken = lsToken;
-        if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken!);
-      } else if (!isSigningIn) {
+        if (cachedAccessToken || lsToken) {
+          if (!cachedAccessToken) cachedAccessToken = lsToken;
+          if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken!);
+        } else if (!isSigningIn) {
+          cachedAccessToken = null;
+          if (onAuthFailure) onAuthFailure();
+        }
+      } else {
         cachedAccessToken = null;
+        localStorage.removeItem('google_sheets_token');
         if (onAuthFailure) onAuthFailure();
       }
-    } else {
-      cachedAccessToken = null;
-      localStorage.removeItem('google_sheets_token');
+    } catch (err) {
+      console.error("Error inside onAuthStateChanged", err);
       if (onAuthFailure) onAuthFailure();
     }
   });
