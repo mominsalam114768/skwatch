@@ -1,4 +1,4 @@
-import { clearGoogleAuth } from './firebase';
+import { clearGoogleAuth, updateCurrentSheetIdInFirestore } from './firebase';
 
 const getSheetId = () => {
   const id = localStorage.getItem('my_sheet_id');
@@ -58,6 +58,7 @@ export async function setupSpreadsheet(accessToken: string, providedSheetId?: st
   const sheetIdToUse = providedSheetId || getSheetId();
   if (providedSheetId) {
     localStorage.setItem('my_sheet_id', providedSheetId);
+    updateCurrentSheetIdInFirestore(providedSheetId).catch(console.error);
   }
 
   const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetIdToUse}`, {
@@ -182,5 +183,6 @@ export async function createNewSpreadsheet(accessToken: string, title: string) {
   const data = await res.json();
   const newSheetId = data.spreadsheetId;
   localStorage.setItem('my_sheet_id', newSheetId);
+  updateCurrentSheetIdInFirestore(newSheetId).catch(console.error);
   return newSheetId;
 }
