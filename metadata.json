@@ -1,0 +1,8 @@
+{
+  "name": "হিসাব খাতা",
+  "description": "Google Sheets as database business management applet",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

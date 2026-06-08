@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --primary-color: #9E1A2A;
+  --bg-light: #F7F4EB;
+  --card-bg: #FFFFFF;
+}
+
+html.dark {
+  --primary-color: #d7293f;
+  --bg-light: #121212;
+  --card-bg: #1e1e1e;
+  color: #e0e0e0;
+}
+
+html.dark body {
+  background-color: var(--bg-light);
+  color: #e0e0e0;
+}
+
+html.dark .bg-card-bg {
+  background-color: var(--card-bg);
+  border-color: #333;
+}
+html.dark .text-gray-900 { color: #f3f4f6; }
+html.dark .text-gray-700 { color: #d1d5db; }
+html.dark .text-gray-600 { color: #9ca3af; }
+html.dark .text-gray-500 { color: #888; }
+html.dark .bg-white { background-color: var(--card-bg); }
+html.dark .bg-gray-50 { background-color: #2a2a2a; color: #fff; }
+html.dark .bg-gray-100 { background-color: #333; }
+html.dark .border-gray-200, html.dark .border-gray-100 { border-color: #333; }
+html.dark input, html.dark select, html.dark textarea {
+  background-color: #2a2a2a;
+  color: #fff;
+  border-color: #333;
+}
+
+@theme {
+  --color-primary: var(--primary-color);
+  --color-bg-light: var(--bg-light);
+  --color-card-bg: var(--card-bg);
+  --font-bengali: 'Hind Siliguri', sans-serif;
+}
