@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Home, Search, Plus, BookOpen, Package, Wallet, FileText, Menu, Settings as SettingsIcon, X, Loader2, Database } from 'lucide-react';
+import { Home, Search, Plus, BookOpen, Package, Wallet, FileText, Menu, Settings as SettingsIcon, X, Loader2, Database, Store } from 'lucide-react';
 import { Dashboard } from './Dashboard';
 import { AddCustomer } from './AddCustomer';
 import { CustomerProfile } from './CustomerProfile';
 import { GlobalReport } from './GlobalReport';
 import { CashboxScreen } from './CashboxScreen';
 import { SettingsScreen } from './SettingsScreen';
+import { MultiStoreScreen } from './MultiStoreScreen';
 import { Customer } from '../types';
 import { setupSpreadsheet, getSheetData, syncDatabaseToLocal } from '../lib/sheets';
 import { getCachedAccessToken, googleSignIn } from '../lib/firebase';
 
-type Screen = 'home' | 'add-customer' | 'customer-profile' | 'stock' | 'cashbox' | 'report' | 'settings';
+type Screen = 'home' | 'add-customer' | 'customer-profile' | 'stock' | 'cashbox' | 'report' | 'settings' | 'stores';
 
 export function Layout({ businessName, userRole, onLogout }: { businessName: string, userRole: string, onLogout: () => void }) {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
@@ -57,7 +58,9 @@ export function Layout({ businessName, userRole, onLogout }: { businessName: str
       } else if (err.message.includes('Unable to parse range')) {
         setErrorMsg('গুগল শিটে "Customers" নামের কোনো শিট পাওয়া যায়নি। দয়া করে শিটটি সেটআপ করুন।');
       } else if (err.message.includes('403') || err.message.includes('404') || err.message.includes('PERMISSION_DENIED')) {
-        setErrorMsg('আপনার বর্তমান জিমেইল একাউন্টের এই ডাটাবেজে পারমিশন নেই। সেটিংসে গিয়ে নতুন ডাটাবেজ তৈরি করুন অথবা সঠিক ডাটাবেজ আইডি দিন।');
+        setErrorMsg('আপনার বর্তমান জিমেইল একাউন্টের এই ডাটাবেজে পারমিশন নেই। যে গুগল একাউন্টটি দিয়ে প্রথমে ডাটাবেজ তৈরি করা হয়েছিল, সেই একাউন্টের গুগল ড্রাইভে গিয়ে বর্তমান ইমেইলটিকে "Share / Editor" পারমিশন দিন, অথবা সঠিক ডাটাবেজ আইডি দিন।');
+      } else if (err.message.includes('No database linked')) {
+        setErrorMsg('আপনার কোনো ডাটাবেজ লিঙ্ক করা নেই। দয়া করে সেটিংস থেকে একটি নতুন ডাটাবেজ তৈরি করুন অথবা লিঙ্ক করুন।');
       } else {
         setErrorMsg('ডাটা লোড করতে সমস্যা হয়েছে: ' + err.message);
       }
@@ -108,6 +111,7 @@ export function Layout({ businessName, userRole, onLogout }: { businessName: str
     { id: 'home', icon: Home, label: 'হোম' },
     { id: 'cashbox', icon: Wallet, label: 'ক্যাশবক্স' },
     { id: 'report', icon: FileText, label: 'রিপোর্ট' },
+    { id: 'stores', icon: Store, label: 'দোকানসমূহ' },
     { id: 'settings', icon: SettingsIcon, label: 'সেটিংস' },
   ];
 
@@ -208,6 +212,15 @@ export function Layout({ businessName, userRole, onLogout }: { businessName: str
                   শিট সেটআপ করুন
                 </button>
               )}
+              {errorMsg.includes('নতুন ডাটাবেজ তৈরি করুন') && (
+                <button 
+                  onClick={() => setCurrentScreen('settings')}
+                  className="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-primary/90 flex items-center gap-2 whitespace-nowrap"
+                >
+                  <SettingsIcon className="w-4 h-4" />
+                  সেটিংসে যান
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -241,6 +254,9 @@ export function Layout({ businessName, userRole, onLogout }: { businessName: str
             )}
             {currentScreen === 'settings' && (
               <SettingsScreen onLogout={onLogout} userRole={userRole} />
+            )}
+            {currentScreen === 'stores' && (
+              <MultiStoreScreen />
             )}
             {currentScreen === 'report' && (
               <GlobalReport customers={customers} />
