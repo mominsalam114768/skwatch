@@ -2,6 +2,8 @@ import React, { useState, FormEvent, useEffect } from 'react';
 import { LogOut, Sun, Moon, Key, UserPlus, Users, Trash2, Store, MapPin, Phone, Image as ImageIcon, Database } from 'lucide-react';
 import { createSubUser, logoutUser, getUsers, deleteUser, AppUser } from '../lib/localAuth';
 import { createNewSpreadsheet, setupSpreadsheet, pushSettingsToDatabase, pushUsersToDatabase } from '../lib/sheets';
+import { getAuth } from 'firebase/auth';
+import { syncSheetIdToFirestore } from '../lib/firebase';
 import { getCachedAccessToken } from '../lib/firebase';
 
 export function SettingsScreen({ onLogout, userRole }: { onLogout: () => void, userRole: string }) {
@@ -35,7 +37,14 @@ export function SettingsScreen({ onLogout, userRole }: { onLogout: () => void, u
     
     try {
       const token = getCachedAccessToken();
+      const currentSheetId = localStorage.getItem('my_sheet_id');
       if (token) await pushSettingsToDatabase(token);
+      
+      const auth = getAuth();
+      if (auth.currentUser && currentSheetId) {
+        await syncSheetIdToFirestore(auth.currentUser.uid, currentSheetId, bizName);
+      }
+      
       alert('প্রতিষ্ঠানের তথ্য সংরক্ষিত হয়েছে!');
     } catch(e: any) {
       alert('লোকাল ব্রাউজারে সংরক্ষিত হয়েছে, তবে ডাটাবেজে সেভ করতে সমস্যা হয়েছে: ' + e.message);
@@ -288,7 +297,26 @@ export function SettingsScreen({ onLogout, userRole }: { onLogout: () => void, u
           <Database className="w-5 h-5 text-primary" /> গুগল শিট ডাটাবেজ সেটআপ
         </h3>
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">প্রত্যেক গুগল একাউন্টের জন্য আলাদা ডাটাবেজ ব্যবহার করতে নিচের অপশন ব্যবহার করুন।</p>
+          <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
+            <p className="text-sm text-blue-800 leading-relaxed font-medium">
+              অন্যান্য ইমেইল থেকে এই একই ডাটাবেজ ব্যবহার করতে চাইলে:
+            </p>
+            <ul className="text-sm focus:outline-none list-disc pl-5 mt-2 space-y-1 text-blue-700">
+              <li>যে ইমেইল দিয়ে ডাটাবেজ তৈরি করেছেন, সেই ইমেইল এর গুগল শিটে যান।</li>
+              <li>উপরে ডানদিকে 'Share' বাটনে লেখা থাকবে, সেখানে ক্লিক করুন।</li>
+              <li>নতুন ইমেইলটি যোগ করে 'Editor' পারমিশন দিয়ে দিন।</li>
+            </ul>
+            {sheetId && (
+              <a 
+                href={`https://docs.google.com/spreadsheets/d/${sheetId}/edit`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="mt-3 inline-block text-sm font-bold text-blue-600 hover:text-blue-800 underline"
+              >
+                গুগল শিটটি ওপেন করুন ↗
+              </a>
+            )}
+          </div>
           
           <div className="pt-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">শিট লিংক বা আইডি (বিদ্যমান ডাটাবেজ)</label>
